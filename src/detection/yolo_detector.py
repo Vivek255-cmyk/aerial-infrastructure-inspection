@@ -4,6 +4,7 @@ from pathlib import Path
 
 import cv2
 import numpy as np
+import yaml
 
 from config.settings import Settings
 from src.detection.cv_detector import CVDefectDetector
@@ -76,6 +77,59 @@ class YOLODetector:
 
     def detect_batch(self, images: list[np.ndarray], asset_type: str = "building_wall") -> list[list[dict]]:
         return [self.detect(img, asset_type=asset_type) for img in images]
+
+    def train(
+        self,
+        data_yaml: str | Path,
+        epochs: int = 100,
+        imgsz: int = 640,
+        batch: int = 16,
+        project: str | Path = "runs/detect",
+        name: str = "infrastructure",
+    ):
+        """Fine-tune YOLO on a validated YOLO-format infrastructure dataset."""
+        dataset_path = Path(data_yaml).resolve()
+        if not dataset_path.exists():
+            raise FileNotFoundError(f"Dataset configuration not found: {dataset_path}")
+
+        with dataset_path.open("r", encoding="utf-8") as stream:
+            config = yaml.safe_load(stream) or {}
+
+        required = {"path", "train", "val", "names"}
+        missing = required.difference(config)
+        if missing:
+            raise ValueError(f"Dataset configuration is missing: {', '.join(sorted(missing))}")
+
+        dataset_root = Path(config["path"])
+        if not dataset_root.is_absolute():
+            dataset_root = (dataset_path.parent / dataset_root).resolve()
+
+        for split in ("train", "val"):
+            split_path = Path(config[split])
+            if not split_path.is_absolute():
+                split_path = dataset_root / split_path
+            if not split_path.exists():
+                raise FileNotFoundError(f"{split} images directory not found: {split_path}")
+
+        names = config["names"]
+        class_count = len(names) if isinstance(names, (list, dict)) else 0
+        if class_count != 8:
+            raise ValueError(f"Expected 8 defect classes, found {class_count}")
+        if epochs < 1 or imgsz < 32 or batch == 0:
+            raise ValueError("epochs and imgsz must be positive, and batch cannot be zero")
+
+        from ultralytics import YOLO
+
+        model = YOLO(self.model_path)
+        return model.train(
+            data=str(dataset_path),
+            epochs=epochs,
+            imgsz=imgsz,
+            batch=batch,
+            project=str(project),
+            name=name,
+            pretrained=True,
+        )
 
     @staticmethod
     def _estimate_severity(

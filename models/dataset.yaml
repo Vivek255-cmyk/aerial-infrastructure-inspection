@@ -1,7 +1,7 @@
 # YOLO dataset configuration for infrastructure defect detection
 # Update paths to point to your labeled dataset
 
-path: data/dataset
+path: ../data/dataset
 train: images/train
 val: images/val
 test: images/test

@@ -148,15 +148,27 @@ pytest tests/ -v
 
 ## Training a Custom YOLO Model
 
-1. Prepare your dataset in YOLO format under `data/dataset/`
-2. Update `models/dataset.yaml` with your paths
-3. Open `notebooks/02_model_training.ipynb` or run:
+A high-accuracy result requires representative, correctly labeled images; 100% accuracy cannot be guaranteed. For this project, collect separate images of plain walls, minor cracks, major cracks, corrosion, spalling, and the other supported classes. Label every defect with bounding boxes using CVAT, Roboflow, or Label Studio. Include negative plain-wall images with empty label files.
+
+Place the dataset in this structure:
+
+```text
+data/dataset/
+	images/train/
+	images/val/
+	labels/train/
+	labels/val/
+```
+
+Each label file must have YOLO rows in the form `class_id center_x center_y width height`, with normalized values from 0 to 1. Keep the class IDs aligned with `models/dataset.yaml`.
+
+After adding the labeled images, train locally:
 
 ```python
-from src.detection.yolo_detector import YOLODetector
-detector = YOLODetector()
-detector.train("models/dataset.yaml", epochs=100)
+python scripts/train_model.py --data models/dataset.yaml --epochs 100 --batch 8
 ```
+
+Use `--batch 2` or `--batch 4` if GPU memory is limited. Evaluate the validation mAP and inspect false positives before deploying. Copy the resulting `best.pt` to `models/weights/infrastructure_best.pt` and set `YOLO_MODEL_PATH=models/weights/infrastructure_best.pt`. Since model weights are excluded from Git, upload them to Render separately or download them during the build.
 
 ## Database Setup (MySQL)
 
