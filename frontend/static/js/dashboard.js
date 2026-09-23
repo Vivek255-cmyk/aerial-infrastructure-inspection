@@ -226,6 +226,13 @@ function formatInspectionOutput(result) {
                 <img src="${result.annotated_image_url}" alt="Annotated Inspection Result" style="width: 100%; max-height: 380px; object-fit: contain; border-radius: 8px; border: 1px solid #2d3348; background: #000;" />
             </div>
         `;
+    } else if (result.annotated_video_url) {
+        imageBlock = `
+            <div style="margin-top: 16px;">
+                <p style="margin-bottom: 6px; font-weight: 600; color: #9aa0a6;">Annotated Video Output:</p>
+                <video src="${result.annotated_video_url}" controls playsinline style="width: 100%; max-height: 380px; border-radius: 8px; border: 1px solid #2d3348; background: #000;"></video>
+            </div>
+        `;
     }
 
     return `
@@ -295,7 +302,7 @@ document.addEventListener('DOMContentLoaded', () => {
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             const resultsDiv = document.getElementById('inspect-results');
-            resultsDiv.innerHTML = '<p class="loading">Running inspection and analyzing image...</p>';
+            resultsDiv.innerHTML = '<p class="loading">Running inspection and analyzing media...</p>';
 
             const formData = new FormData(form);
             try {

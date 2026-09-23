@@ -16,6 +16,7 @@ from src.database.models import init_db
 from src.database.repository import InspectionRepository
 from src.models.predictive_maintenance import PredictiveMaintenanceEngine
 from src.processing.image_processor import ImageProcessor
+from src.processing.video_processor import VideoProcessor
 
 
 def create_app() -> Flask:
@@ -129,15 +130,91 @@ def create_app() -> Flask:
         save_path = Path(app.config["UPLOAD_FOLDER"]) / filename
         file.save(str(save_path))
 
+        source_ids = {"mobile": "mobile-cam", "webcam": "webcam", "upload": "upload"}
+        inspection = InspectionRepository.create_inspection(
+            asset_id, drone_id=source_ids.get(source, source)
+        )
+
+        is_video = ext.lower() in {".mp4", ".mov", ".avi", ".webm", ".mkv"}
+        if is_video:
+            detector = get_detector()
+            video_processor = VideoProcessor(frame_interval=30)
+            annotated_filename = f"annotated_{Path(filename).stem}.mp4"
+            annotated_path = Path(app.config["PROCESSED_FOLDER"]) / annotated_filename
+            try:
+                video_info = video_processor.get_video_info(save_path)
+                detections = video_processor.process_video(
+                    save_path,
+                    detector,
+                    annotated_path,
+                    asset_type=asset.asset_type,
+                )
+            except (FileNotFoundError, ValueError) as exc:
+                return jsonify({"error": str(exc)}), 400
+
+            for det in detections:
+                InspectionRepository.save_defect(
+                    inspection.id, asset_id, det, str(save_path)
+                )
+
+            pm_engine = PredictiveMaintenanceEngine()
+            condition_score = pm_engine.calculate_condition_score(detections)
+            dominant = max(
+                detections,
+                key=lambda det: (
+                    pm_engine.SEVERITY_SCORES.get(det.get("severity", "low"), 1),
+                    det.get("confidence", 0),
+                ),
+                default={"class": "None", "severity": "low", "confidence": 1},
+            )
+            dominant_defect = dominant["class"]
+            dominant_severity = dominant["severity"]
+            maintenance_priority = pm_engine.get_maintenance_priority(dominant_severity)
+            rec_maintenance = (
+                pm_engine.get_maintenance_recommendation(
+                    dominant_defect, dominant_severity, asset_type=asset.asset_type
+                )
+                if detections
+                else "No visible defect detected. Continue routine monitoring."
+            )
+            InspectionRepository.complete_inspection(
+                inspection_id=inspection.id,
+                defect_count=len(detections),
+                image_count=max(1, video_info["frame_count"]),
+                condition_score=condition_score,
+                maintenance_priority=maintenance_priority,
+                recommended_maintenance=rec_maintenance,
+                next_inspection_days=pm_engine.get_next_inspection_days(dominant_severity),
+                trend="Stable",
+                quality_status="ok",
+                quality_message="Video frames analyzed",
+            )
+            return jsonify({
+                "inspection_id": inspection.id,
+                "asset_id": asset.id,
+                "asset_name": asset.name,
+                "asset_type": asset.asset_type,
+                "quality_status": "ok",
+                "media_type": "video",
+                "frames_analyzed": len(detections),
+                "defects_found": len(detections),
+                "detections": detections[:50],
+                "defect_type": dominant_defect,
+                "severity": dominant_severity.title(),
+                "confidence": int(round(dominant["confidence"] * 100)),
+                "condition_score": condition_score,
+                "maintenance_priority": maintenance_priority,
+                "recommended_maintenance": rec_maintenance,
+                "next_inspection_days": pm_engine.get_next_inspection_days(dominant_severity),
+                "trend": "Stable",
+                "annotated_video_url": f"/processed/{annotated_filename}",
+            })
+
         processor = ImageProcessor()
         raw_image = processor.load(save_path)
 
         # 1. Quality Validation
         is_valid_quality, quality_msg = processor.validate_quality(raw_image)
-        source_ids = {"mobile": "mobile-cam", "webcam": "webcam", "upload": "upload"}
-        inspection = InspectionRepository.create_inspection(
-            asset_id, drone_id=source_ids.get(source, source)
-        )
 
         if not is_valid_quality:
             InspectionRepository.complete_inspection(

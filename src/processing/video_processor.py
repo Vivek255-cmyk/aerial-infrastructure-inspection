@@ -49,6 +49,7 @@ class VideoProcessor:
         video_path: str | Path,
         detector,
         output_path: str | Path | None = None,
+        asset_type: str = "building_wall",
     ) -> list[dict]:
         """Run defect detection on every Nth frame of a video."""
         cap = cv2.VideoCapture(str(video_path))
@@ -73,7 +74,7 @@ class VideoProcessor:
                 break
 
             if frame_count % self.frame_interval == 0:
-                detections = detector.detect(frame)
+                detections = detector.detect(frame, asset_type=asset_type)
                 annotated = self.image_processor.draw_annotations(frame, detections)
 
                 for det in detections:
