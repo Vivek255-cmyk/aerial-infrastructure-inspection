@@ -2,9 +2,15 @@ const cameraState = {
     stream: null,
     facingMode: "environment",
     blob: null,
+    recordingBlob: null,
+    recorder: null,
+    recordingChunks: [],
 };
 
 function stopCamera() {
+    if (cameraState.recorder && cameraState.recorder.state !== "inactive") {
+        cameraState.recorder.stop();
+    }
     if (cameraState.stream) {
         cameraState.stream.getTracks().forEach((track) => track.stop());
         cameraState.stream = null;
@@ -15,16 +21,24 @@ async function startCamera() {
     const video = document.getElementById("camera-preview");
     const placeholder = document.getElementById("camera-placeholder");
     const snapshot = document.getElementById("camera-snapshot");
+    const recording = document.getElementById("camera-recording");
     const captureBtn = document.getElementById("capture-photo");
     const inspectBtn = document.getElementById("inspect-photo");
     const retakeBtn = document.getElementById("retake-photo");
+    const startRecordingBtn = document.getElementById("start-recording");
+    const stopRecordingBtn = document.getElementById("stop-recording");
+    const inspectRecordingBtn = document.getElementById("inspect-recording");
 
     stopCamera();
     snapshot.hidden = true;
+    recording.hidden = true;
     video.hidden = false;
     cameraState.blob = null;
+    cameraState.recordingBlob = null;
     inspectBtn.disabled = true;
     retakeBtn.disabled = true;
+    inspectRecordingBtn.disabled = true;
+    stopRecordingBtn.disabled = true;
 
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         placeholder.hidden = false;
@@ -48,6 +62,7 @@ async function startCamera() {
             video.srcObject = cameraState.stream;
             placeholder.hidden = true;
             captureBtn.disabled = false;
+            startRecordingBtn.disabled = !window.MediaRecorder;
             return;
         } catch (err) {
             lastError = err;
@@ -59,6 +74,7 @@ async function startCamera() {
     const message = lastError && lastError.message ? lastError.message : "Camera access is unavailable on this device.";
     placeholder.textContent = `Camera access failed: ${message}. Use "open the phone camera app" below.`;
     captureBtn.disabled = true;
+    startRecordingBtn.disabled = true;
 }
 
 function showSnapshot(blob) {
@@ -86,6 +102,51 @@ function captureFrame() {
     canvas.toBlob((blob) => {
         if (blob) showSnapshot(blob);
     }, "image/jpeg", 0.92);
+}
+
+function getRecordingMimeType() {
+    const types = ["video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"];
+    return types.find((type) => MediaRecorder.isTypeSupported(type)) || "";
+}
+
+function startRecording() {
+    if (!cameraState.stream || !window.MediaRecorder) return;
+
+    const mimeType = getRecordingMimeType();
+    if (!mimeType) {
+        document.getElementById("recording-status").textContent = "Video recording is not supported by this browser.";
+        return;
+    }
+
+    cameraState.recordingChunks = [];
+    cameraState.recordingBlob = null;
+    cameraState.recorder = new MediaRecorder(cameraState.stream, { mimeType });
+    cameraState.recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) cameraState.recordingChunks.push(event.data);
+    };
+    cameraState.recorder.onstop = () => {
+        cameraState.recordingBlob = new Blob(cameraState.recordingChunks, { type: mimeType });
+        const recording = document.getElementById("camera-recording");
+        recording.src = URL.createObjectURL(cameraState.recordingBlob);
+        recording.hidden = false;
+        document.getElementById("camera-preview").hidden = true;
+        document.getElementById("inspect-recording").disabled = false;
+        document.getElementById("start-recording").disabled = false;
+        document.getElementById("recording-status").textContent = "Recording ready for inspection.";
+    };
+    cameraState.recorder.start();
+    document.getElementById("start-recording").disabled = true;
+    document.getElementById("stop-recording").disabled = false;
+    document.getElementById("capture-photo").disabled = true;
+    document.getElementById("recording-status").textContent = "Recording live video...";
+}
+
+function stopRecording() {
+    if (cameraState.recorder && cameraState.recorder.state !== "inactive") {
+        cameraState.recorder.stop();
+    }
+    document.getElementById("stop-recording").disabled = true;
+    document.getElementById("capture-photo").disabled = false;
 }
 
 async function loadAssets() {
@@ -149,6 +210,13 @@ function formatCameraInspectionOutput(result) {
                 <img src="${result.annotated_image_url}" alt="Annotated Inspection Result" style="width: 100%; max-height: 380px; object-fit: contain; border-radius: 8px; border: 1px solid #2d3348; background: #000;" />
             </div>
         `;
+    } else if (result.annotated_video_url) {
+        imageBlock = `
+            <div style="margin-top: 16px;">
+                <p style="margin-bottom: 6px; font-weight: 600; color: #9aa0a6;">Annotated Video Output:</p>
+                <video src="${result.annotated_video_url}" controls playsinline style="width: 100%; max-height: 380px; border-radius: 8px; border: 1px solid #2d3348; background: #000;"></video>
+            </div>
+        `;
     }
 
     return `
@@ -200,6 +268,27 @@ async function inspectCapturedPhoto() {
     }
 }
 
+async function inspectRecordedVideo() {
+    const results = document.getElementById("camera-results");
+    if (!cameraState.recordingBlob) {
+        results.innerHTML = '<p class="loading">Record a video first.</p>';
+        return;
+    }
+
+    results.innerHTML = '<p class="loading">Uploading video and analyzing frames...</p>';
+    const formData = new FormData();
+    formData.append("image", cameraState.recordingBlob, "mobile_recording.webm");
+    formData.append("asset_id", document.getElementById("camera-asset").value);
+    formData.append("source", "mobile");
+
+    try {
+        const result = await fetchJSON("/api/inspect", { method: "POST", body: formData });
+        results.innerHTML = formatCameraInspectionOutput(result);
+    } catch (err) {
+        results.innerHTML = `<p style="color: var(--danger);">Video inspection failed: ${err.message}</p>`;
+    }
+}
+
 async function loadLanHint() {
     const hint = document.getElementById("lan-hint");
     if (!hint) return;
@@ -222,6 +311,9 @@ document.addEventListener("DOMContentLoaded", () => {
         startCamera();
     });
     document.getElementById("capture-photo").addEventListener("click", captureFrame);
+    document.getElementById("start-recording").addEventListener("click", startRecording);
+    document.getElementById("stop-recording").addEventListener("click", stopRecording);
+    document.getElementById("inspect-recording").addEventListener("click", inspectRecordedVideo);
     document.getElementById("retake-photo").addEventListener("click", startCamera);
     document.getElementById("inspect-photo").addEventListener("click", inspectCapturedPhoto);
 
@@ -229,7 +321,17 @@ document.addEventListener("DOMContentLoaded", () => {
         const file = e.target.files && e.target.files[0];
         if (!file) return;
         document.getElementById("camera-placeholder").hidden = true;
-        showSnapshot(file);
+        if (file.type.startsWith("video/")) {
+            cameraState.recordingBlob = file;
+            const recording = document.getElementById("camera-recording");
+            recording.src = URL.createObjectURL(file);
+            recording.hidden = false;
+            document.getElementById("camera-preview").hidden = true;
+            document.getElementById("inspect-recording").disabled = false;
+            document.getElementById("recording-status").textContent = "Video ready for inspection.";
+        } else {
+            showSnapshot(file);
+        }
     });
 
     window.addEventListener("pagehide", stopCamera);

@@ -13,6 +13,7 @@
             <video id="camera-preview" autoplay playsinline muted></video>
             <canvas id="camera-canvas" hidden></canvas>
             <img id="camera-snapshot" alt="Captured inspection photo" hidden>
+            <video id="camera-recording" controls playsinline hidden></video>
             <div id="camera-placeholder" class="camera-placeholder">
                 Camera preview will appear here after you allow access.
             </div>
@@ -29,11 +30,15 @@
                 <button type="button" class="btn btn-primary" id="capture-photo" disabled>Capture</button>
                 <button type="button" class="btn btn-secondary" id="retake-photo" disabled>Retake</button>
                 <button type="button" class="btn btn-primary" id="inspect-photo" disabled>Inspect Photo</button>
+                <button type="button" class="btn btn-record" id="start-recording" disabled>Start Recording</button>
+                <button type="button" class="btn btn-secondary" id="stop-recording" disabled>Stop Recording</button>
+                <button type="button" class="btn btn-primary" id="inspect-recording" disabled>Inspect Video</button>
             </div>
             <div class="form-group">
-                <label for="native-camera">Or open the phone camera app</label>
-                <input type="file" id="native-camera" accept="image/*" capture="environment">
+                <label for="native-camera">Or choose a photo or video</label>
+                <input type="file" id="native-camera" accept="image/*,video/*" capture="environment">
             </div>
+            <p id="recording-status" class="hint" aria-live="polite"></p>
             <p class="hint">On a phone, open this page on the same Wi‑Fi: <code id="lan-hint"></code></p>
         </div>
     </div>
