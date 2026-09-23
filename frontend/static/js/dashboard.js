@@ -136,12 +136,12 @@ function renderInspectionsTable() {
     const query = (document.getElementById('search-inspections')?.value || '').trim().toLowerCase();
     const status = document.getElementById('status-filter')?.value || '';
     const rows = inspectionRows.filter((inspection) => {
-        const searchable = `${inspection.id} ${inspection.asset_name} ${inspection.drone_id} ${inspection.status}`.toLowerCase();
+        const searchable = `${inspection.id} ${inspection.asset_name} ${inspection.status}`.toLowerCase();
         return (!query || searchable.includes(query)) && (!status || inspection.status === status);
     });
 
     if (!rows.length) {
-        body.innerHTML = '<tr><td colspan="8" class="loading">No inspections found.</td></tr>';
+        body.innerHTML = '<tr><td colspan="7" class="loading">No inspections found.</td></tr>';
         return;
     }
 
@@ -149,7 +149,6 @@ function renderInspectionsTable() {
         <tr>
             <td>#${inspection.id}</td>
             <td>${inspection.asset_name}</td>
-            <td>${inspection.drone_id || '--'}</td>
             <td>${inspection.image_count ?? 0}</td>
             <td>${inspection.defect_count ?? 0}</td>
             <td><span class="status-${inspection.status}">${inspection.status}</span></td>
@@ -175,23 +174,11 @@ async function loadInspectionsTable() {
         }));
         renderInspectionsTable();
     } catch (err) {
-        body.innerHTML = `<tr><td colspan="8" style="color: var(--danger);">Could not load inspections: ${err.message}</td></tr>`;
+        body.innerHTML = `<tr><td colspan="7" style="color: var(--danger);">Could not load inspections: ${err.message}</td></tr>`;
     }
 
     document.getElementById('search-inspections')?.addEventListener('input', renderInspectionsTable);
     document.getElementById('status-filter')?.addEventListener('change', renderInspectionsTable);
-}
-
-async function loadDroneTelemetry() {
-    try {
-        const tel = await fetchJSON('/api/drone/telemetry');
-        document.getElementById('drone-status').textContent = tel.status || '--';
-        document.getElementById('drone-battery').textContent = tel.battery_percent ? `${tel.battery_percent}%` : '--';
-        document.getElementById('drone-altitude').textContent = tel.altitude_m != null ? `${tel.altitude_m}m` : '--';
-        document.getElementById('drone-speed').textContent = tel.speed_mps != null ? `${tel.speed_mps} m/s` : '--';
-    } catch (err) {
-        console.error('Telemetry error:', err);
-    }
 }
 
 function formatInspectionOutput(result) {
@@ -295,11 +282,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (document.getElementById('predictions-list')) {
         loadPredictions();
     }
-    if (document.getElementById('drone-status')) {
-        loadDroneTelemetry();
-        setInterval(loadDroneTelemetry, 10000);
-    }
-
     const uploadInput = document.getElementById('image-upload');
     if (uploadInput) {
         uploadInput.addEventListener('change', () => {
