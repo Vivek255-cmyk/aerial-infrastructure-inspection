@@ -43,6 +43,10 @@ class Settings:
     @property
     def DATABASE_URI(self) -> str:
         if self.DATABASE_URL:
+            # Render and some hosted database providers still return the
+            # legacy postgres:// scheme, which SQLAlchemy no longer accepts.
+            if self.DATABASE_URL.startswith("postgres://"):
+                return "postgresql+psycopg2://" + self.DATABASE_URL[len("postgres://"):]
             return self.DATABASE_URL
         db_path = self.BASE_DIR / "data" / "inspection.db"
         return f"sqlite:///{db_path.as_posix()}"
