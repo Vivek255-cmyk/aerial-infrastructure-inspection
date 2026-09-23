@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Mobile Camera - Aerial Inspection System{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Mobile Camera Inspection</h1>
+    <p>Use your phone or laptop camera to capture defects in the field</p>
+</div>
+
+<div class="camera-layout">
+    <div class="panel camera-panel">
+        <div class="camera-stage">
+            <video id="camera-preview" autoplay playsinline muted></video>
+            <canvas id="camera-canvas" hidden></canvas>
+            <img id="camera-snapshot" alt="Captured inspection photo" hidden>
+            <div id="camera-placeholder" class="camera-placeholder">
+                Camera preview will appear here after you allow access.
+            </div>
+        </div>
+
+        <div class="camera-controls">
+            <div class="form-group">
+                <label for="camera-asset">Asset</label>
+                <select id="camera-asset"></select>
+            </div>
+            <div class="btn-row wrap">
+                <button type="button" class="btn btn-primary" id="start-camera">Start Camera</button>
+                <button type="button" class="btn btn-secondary" id="flip-camera">Flip Camera</button>
+                <button type="button" class="btn btn-primary" id="capture-photo" disabled>Capture</button>
+                <button type="button" class="btn btn-secondary" id="retake-photo" disabled>Retake</button>
+                <button type="button" class="btn btn-primary" id="inspect-photo" disabled>Inspect Photo</button>
+            </div>
+            <div class="form-group">
+                <label for="native-camera">Or open the phone camera app</label>
+                <input type="file" id="native-camera" accept="image/*" capture="environment">
+            </div>
+            <p class="hint">On a phone, open this page on the same Wi‑Fi: <code id="lan-hint"></code></p>
+        </div>
+    </div>
+
+    <div class="panel">
+        <h3>Inspection Result</h3>
+        <div id="camera-results" class="results-area">
+            <p class="loading">Capture a photo to run defect detection.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/camera.js') }}"></script>
+{% endblock %}

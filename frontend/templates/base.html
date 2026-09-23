@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Aerial Inspection System{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <button class="menu-toggle" id="menu-toggle" aria-label="Open menu">Menu</button>
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+    <nav class="sidebar" id="sidebar">
+        <div class="logo">
+            <h2>AerialInspect</h2>
+            <span class="subtitle">Predictive Maintenance</span>
+        </div>
+        <ul class="nav-links">
+            <li><a href="/" class="{% if request.path == '/' %}active{% endif %}">Dashboard</a></li>
+            <li><a href="/inspections" class="{% if request.path == '/inspections' %}active{% endif %}">Inspections</a></li>
+            <li><a href="/camera" class="{% if request.path == '/camera' %}active{% endif %}">Mobile Camera</a></li>
+            <li><a href="/#drone">Drone Control</a></li>
+        </ul>
+        <div class="status-indicator">
+            <span class="dot online"></span> System Online
+        </div>
+    </nav>
+
+    <main class="content">
+        {% block content %}{% endblock %}
+    </main>
+
+    <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

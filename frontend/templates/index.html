@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - Aerial Inspection System{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Infrastructure Inspection Dashboard</h1>
+    <p>AI-Assisted Aerial Infrastructure Analysis & Predictive Maintenance System</p>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon assets-icon"></div>
+        <div class="stat-info">
+            <h3 id="total-assets">--</h3>
+            <p>Total Assets</p>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon inspections-icon"></div>
+        <div class="stat-info">
+            <h3 id="total-inspections">--</h3>
+            <p>Inspections</p>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon defects-icon"></div>
+        <div class="stat-info">
+            <h3 id="total-defects">--</h3>
+            <p>Defects Found</p>
+        </div>
+    </div>
+    <div class="stat-card critical">
+        <div class="stat-icon critical-icon"></div>
+        <div class="stat-info">
+            <h3 id="critical-count">--</h3>
+            <p>Critical Issues</p>
+        </div>
+    </div>
+</div>
+
+<div class="charts-row">
+    <div class="chart-card">
+        <h3>Defect Distribution</h3>
+        <canvas id="defectChart"></canvas>
+    </div>
+    <div class="chart-card">
+        <h3>Severity Breakdown</h3>
+        <canvas id="severityChart"></canvas>
+    </div>
+</div>
+
+<div class="panel-row">
+    <div class="panel">
+        <h3>Upload & Inspect</h3>
+        <form id="inspect-form" enctype="multipart/form-data">
+            <div class="form-group">
+                <label for="asset-select">Select Asset</label>
+                <select id="asset-select" name="asset_id" style="width: 100%; padding: 10px; border-radius: 6px; background: var(--bg-primary, #1e2230); color: #fff; border: 1px solid var(--border-color, #2d3348); font-size: 0.95rem;">
+                    <option value="1">Asset ID: 1 — Building Wall</option>
+                    <option value="2">Asset ID: 2 — Bridge Span</option>
+                    <option value="3">Asset ID: 3 — Tower/Mast</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="image-upload">Inspection Image</label>
+                <input type="file" id="image-upload" name="image" accept="image/*" capture="environment" required>
+            </div>
+            <input type="hidden" name="source" id="inspect-source" value="upload">
+            <div class="btn-row">
+                <button type="submit" class="btn btn-primary">Run Inspection</button>
+                <a href="/camera" class="btn btn-secondary">Use Mobile Camera</a>
+            </div>
+        </form>
+        <div id="inspect-results" class="results-area" style="margin-top: 16px;"></div>
+    </div>
+
+    <div class="panel">
+        <h3>Maintenance Predictions</h3>
+        <div id="predictions-list" class="predictions-area">
+            <p class="loading">Loading predictions...</p>
+        </div>
+    </div>
+</div>
+
+<div class="panel" id="drone">
+    <h3>Drone Telemetry</h3>
+    <div id="telemetry-display" class="telemetry-grid">
+        <div class="telemetry-item">
+            <span class="label">Status</span>
+            <span class="value" id="drone-status">--</span>
+        </div>
+        <div class="telemetry-item">
+            <span class="label">Battery</span>
+            <span class="value" id="drone-battery">--</span>
+        </div>
+        <div class="telemetry-item">
+            <span class="label">Altitude</span>
+            <span class="value" id="drone-altitude">--</span>
+        </div>
+        <div class="telemetry-item">
+            <span class="label">Speed</span>
+            <span class="value" id="drone-speed">--</span>
+        </div>
+    </div>
+</div>
+{% endblock %}

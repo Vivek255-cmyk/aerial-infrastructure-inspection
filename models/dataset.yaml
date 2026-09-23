@@ -1,0 +1,18 @@
+# YOLO dataset configuration for infrastructure defect detection
+# Update paths to point to your labeled dataset
+
+path: data/dataset
+train: images/train
+val: images/val
+test: images/test
+
+nc: 8
+names:
+  0: crack
+  1: corrosion
+  2: spalling
+  3: vegetation_overgrowth
+  4: insulator_damage
+  5: rust
+  6: missing_component
+  7: structural_deformation
