@@ -34,6 +34,12 @@ def create_app() -> Flask:
     app.config["PROCESSED_FOLDER"] = str(settings.DATA_DIR / "processed")
 
     CORS(app)
+
+    @app.errorhandler(Exception)
+    def handle_unexpected_error(error):
+        app.logger.exception("Unhandled application error")
+        return jsonify({"error": "Inspection service error", "message": str(error)}), 500
+
     init_db(app)
 
     os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
@@ -109,9 +115,11 @@ def create_app() -> Flask:
     def run_inspection():
         """Run full inspection pipeline: quality check → detect → score → recommend → save."""
         if "image" not in request.files:
-            return jsonify({"error": "No image provided"}), 400
+            return jsonify({"error": "No image or video provided"}), 400
 
         file = request.files["image"]
+        if not file.filename:
+            return jsonify({"error": "No image or video selected"}), 400
         asset_id = int(request.form.get("asset_id", 1))
         source = request.form.get("source", "upload")
 
@@ -126,6 +134,9 @@ def create_app() -> Flask:
             raw_name = "capture.jpg"
         stem = Path(raw_name).stem
         ext = Path(raw_name).suffix or ".jpg"
+        supported_extensions = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".mp4", ".mov", ".avi", ".webm", ".mkv"}
+        if ext.lower() not in supported_extensions:
+            return jsonify({"error": "Unsupported file type. Use an image or video file."}), 400
         filename = f"{stem}_{datetime.utcnow():%Y%m%d_%H%M%S}_{uuid.uuid4().hex[:6]}{ext}"
         save_path = Path(app.config["UPLOAD_FOLDER"]) / filename
         file.save(str(save_path))

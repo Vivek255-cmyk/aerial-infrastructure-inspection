@@ -2,8 +2,14 @@ const API = '';
 
 async function fetchJSON(url, options = {}) {
     const res = await fetch(API + url, options);
-    if (!res.ok) throw new Error(`API error: ${res.status}`);
-    return res.json();
+    const contentType = res.headers.get('content-type') || '';
+    const payload = contentType.includes('application/json')
+        ? await res.json()
+        : { error: await res.text() };
+    if (!res.ok) {
+        throw new Error(payload.error || payload.message || `API error: ${res.status}`);
+    }
+    return payload;
 }
 
 async function loadDashboardStats() {
