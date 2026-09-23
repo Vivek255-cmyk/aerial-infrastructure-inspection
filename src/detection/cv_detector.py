@@ -102,7 +102,11 @@ class CVDefectDetector:
             # Cracks are typically elongated (high arc length relative to area or high aspect ratio)
             solidity = area / (bw * bh) if (bw * bh) > 0 else 1.0
 
-            if (arc_len > 40 and solidity < 0.55) or (rect_len > 30 and (aspect_ratio > 1.8 or aspect_ratio < 0.55)):
+            # Reject broad wall texture and lighting boundaries. A crack candidate
+            # must be both elongated and thin relative to its bounding box.
+            thin_shape = solidity < 0.35 and (aspect_ratio > 2.2 or aspect_ratio < 0.45)
+            long_boundary = arc_len / max(rect_len, 1) > 2.5 and solidity < 0.45
+            if (arc_len > 40 and (thin_shape or long_boundary)):
                 crack_boxes.append({
                     "bbox": [x, y, x + bw, y + bh],
                     "arc_len": arc_len,
@@ -126,16 +130,18 @@ class CVDefectDetector:
             diag_len = np.sqrt(bw**2 + bh**2)
             rel_len = diag_len / img_diag
 
-            # Classify as Crack or Major Crack
-            is_major = rel_len > 0.28 or rect_len > (max(h, w) * 0.35)
+            # A long, thin crack can be major, but its length alone is not enough:
+            # the affected region must also cover a meaningful part of the image.
+            area_ratio = (bw * bh) / (h * w)
+            is_major = rel_len > 0.45 and area_ratio > 0.025
             defect_class = "Major Crack" if is_major and asset_type in {"building_wall", "building"} else "Crack"
 
             # Estimate Severity
-            if rel_len > 0.35 or rect_len > (max(h, w) * 0.4):
+            if is_major and rel_len > 0.60 and area_ratio > 0.06:
                 severity = "critical"
-            elif rel_len > 0.20 or rect_len > (max(h, w) * 0.25):
+            elif is_major or rel_len > 0.28:
                 severity = "high"
-            elif rel_len > 0.10 or rect_len > (max(h, w) * 0.12):
+            elif rel_len > 0.12 or area_ratio > 0.005:
                 severity = "medium"
             else:
                 severity = "low"
@@ -148,7 +154,7 @@ class CVDefectDetector:
                 "confidence": round(float(confidence), 2),
                 "bbox": [x1, y1, x2, y2],
                 "severity": severity,
-                "area_ratio": round(float((bw * bh) / (h * w)), 4),
+                "area_ratio": round(float(area_ratio), 4),
             })
 
         return detections

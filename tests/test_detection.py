@@ -64,6 +64,28 @@ class TestCVDefectDetector:
         assert len(dets) > 0
         assert dets[0]["class"] in ("Crack", "Major Crack")
 
+    def test_plain_wall_does_not_become_major_crack(self):
+        detector = CVDefectDetector()
+        img = np.full((300, 300, 3), 220, dtype=np.uint8)
+        cv2 = pytest.importorskip("cv2")
+        for y in range(0, 300, 24):
+            cv2.line(img, (0, y), (299, y), (205, 205, 205), 2)
+
+        dets = detector.detect_defects(img, asset_type="building_wall")
+        assert all(det["class"] != "Major Crack" for det in dets)
+        assert all(det["severity"] != "critical" for det in dets)
+
+    def test_short_crack_is_not_critical(self):
+        detector = CVDefectDetector()
+        img = np.full((300, 300, 3), 220, dtype=np.uint8)
+        cv2 = pytest.importorskip("cv2")
+        cv2.line(img, (105, 140), (195, 160), (20, 20, 20), 2)
+
+        dets = detector.detect_defects(img, asset_type="building_wall")
+        assert dets
+        assert dets[0]["class"] == "Crack"
+        assert dets[0]["severity"] in ("low", "medium")
+
 
 class TestPredictiveMaintenance:
     def test_calculate_condition_score(self):
